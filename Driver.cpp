@@ -3,7 +3,7 @@
 
 struct BLOCK
 {
-    unsigned index;
+    //unsigned index; //Don't need another index, just use array index
     char valid;
     unsigned tag;
 };
@@ -44,14 +44,23 @@ bool DirectCache(std::ifstream &infile)
     {
         //Allocate memory for cache
         BLOCK* cache = (BLOCK*)malloc(sizeof(BLOCK) * sizes[i]);
+        
+        for(int j = 0; j < sizes[i]; j++)
+        {
+            cache[j].valid = 0;
+            cache[j].tag = 0;
+        }
 
         //Variables for reading
         std::string instr;
         unsigned long addr;
+        std::string derp;
         //Reading loop
         while(infile >> instr >> std::hex >> addr)
         {
-            LogPrint(INFO, instr + " - " + GetHexString(addr));
+            unsigned cacheindex = addr % sizes[i];
+            //LogPrint(INFO, instr + " - " + GetHexString(addr) + " - " + GetHexString(cacheindex));
+            std::cin >> derp;
         }
 
         //Unallocate memory
