@@ -38,13 +38,14 @@ int main(int argc, char** argv)
 bool DirectCache(std::ifstream &infile)
 {
     int sizes[4] = {32, 128, 512, 1024};
+    int shifts[4] = {5, 7, 9, 10};
 
     //Loop 4 times for each cache size
     for(int i = 0; i < 4; i++)
     {
         //Allocate memory for cache
         BLOCK* cache = (BLOCK*)malloc(sizeof(BLOCK) * sizes[i]);
-        
+        //Initialize cache 
         for(int j = 0; j < sizes[i]; j++)
         {
             cache[j].valid = 0;
@@ -58,8 +59,11 @@ bool DirectCache(std::ifstream &infile)
         //Reading loop
         while(infile >> instr >> std::hex >> addr)
         {
+            //Index is found by Block Address modulo Cache size
             unsigned cacheindex = addr % sizes[i];
-            //LogPrint(INFO, instr + " - " + GetHexString(addr) + " - " + GetHexString(cacheindex));
+            //Tag is the rest of the bits
+            unsigned cachetag = addr >> shifts[i];
+            LogPrint(INFO, instr + " - " + GetHexString(addr) + " - " + GetHexString(cacheindex) + " - " + GetHexString(cachetag));
             std::cin >> derp;
         }
 
