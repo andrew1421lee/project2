@@ -10,6 +10,7 @@ struct BLOCK
 
 //Global Variables
 std::string outfile;
+std::string dummy;
 
 //Forward Declarations
 bool DirectCache(std::ifstream &infile);
@@ -43,6 +44,10 @@ bool DirectCache(std::ifstream &infile)
     //Loop 4 times for each cache size
     for(int i = 0; i < 4; i++)
     {
+        //Important variables
+        unsigned accesses = 0;
+        unsigned hits = 0;
+
         //Allocate memory for cache
         BLOCK* cache = (BLOCK*)malloc(sizeof(BLOCK) * sizes[i]);
         //Initialize cache 
@@ -55,20 +60,39 @@ bool DirectCache(std::ifstream &infile)
         //Variables for reading
         std::string instr;
         unsigned long addr;
-        std::string derp;
+
         //Reading loop
         while(infile >> instr >> std::hex >> addr)
         {
             //Index is found by Block Address modulo Cache size
-            unsigned cacheindex = addr % sizes[i];
+            unsigned cindex = addr % sizes[i];
             //Tag is the rest of the bits
-            unsigned cachetag = addr >> shifts[i];
-            LogPrint(INFO, instr + " - " + GetHexString(addr) + " - " + GetHexString(cacheindex) + " - " + GetHexString(cachetag));
-            std::cin >> derp;
+            unsigned ctag = addr >> shifts[i];
+            //Check if cache location is valid
+            if(cache[cindex].valid)
+            {
+                if(cache[cindex].tag == ctag)
+                {
+                    hits++;
+                }
+                else
+                {
+                    cache[cindex].tag = ctag;
+                }
+            }
+            else
+            {
+                cache[cindex].valid = 1;
+                cache[cindex].tag = ctag;
+            }
+            accesses++;
+
+            LogPrint(INFO, instr + " - " + GetHexString(addr) + " - " + GetHexString(cindex) + " - " + GetHexString(ctag));
         }
 
         //Unallocate memory
         free(cache);
+        std::cin >> dummy;
     }
     
     return true;
