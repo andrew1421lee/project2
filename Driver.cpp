@@ -17,31 +17,33 @@ std::string GetHexString(unsigned long hex);
 
 int main(int argc, char** argv)
 {
+    //Invalid input check
     if(argc < 3 || argc > 3)
     {
         std::cout << "Usage: " << argv[0] << " [input] [output]" << std::endl;
         return 0;
     }
 
+    //Load file from args
     outfile = argv[2];
-    
     std::ifstream infile(argv[1]);
+    //If file exists and opened
     if(infile)
     {
-        LogPrint(DEBUG, "Testing");
+        //Run direct cache on data
         if(!DirectCache(infile)) LogPrint(ERROR, "Failed Direct Cache");
     }
 }
 
 bool DirectCache(std::ifstream &infile)
 {
-    int* sizes = [32, 128, 512, 1024];
+    int sizes[4] = {32, 128, 512, 1024};
 
     //Loop 4 times for each cache size
     for(int i = 0; i < 4; i++)
     {
         //Allocate memory for cache
-        BLOCK* cache = malloc(sizeof(BLOCK) * sizes[i]);
+        BLOCK* cache = (BLOCK*)malloc(sizeof(BLOCK) * sizes[i]);
 
         //Variables for reading
         std::string instr;
@@ -51,6 +53,9 @@ bool DirectCache(std::ifstream &infile)
         {
             LogPrint(INFO, instr + " - " + GetHexString(addr));
         }
+
+        //Unallocate memory
+        free(cache);
     }
     
     return true;
