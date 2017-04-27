@@ -15,6 +15,7 @@ std::string dummy;
 //Forward Declarations
 bool DirectCache(std::ifstream &infile);
 std::string GetHexString(unsigned long hex);
+void BeKindRewind(std::ifstream &infile);
 
 int main(int argc, char** argv)
 {
@@ -25,8 +26,9 @@ int main(int argc, char** argv)
         return 0;
     }
 
-    //Load file from args
+    //save output file
     outfile = argv[2];
+    //Load input file
     std::ifstream infile(argv[1]);
     //If file exists and opened
     if(infile)
@@ -38,18 +40,27 @@ int main(int argc, char** argv)
 
 bool DirectCache(std::ifstream &infile)
 {
+    //Numbers for cache sizes
     int sizes[4] = {32, 128, 512, 1024};
     int shifts[4] = {5, 7, 9, 10};
+
+    //String being written to file
+    std::stringstream returnstring;
 
     //Loop 4 times for each cache size
     for(int i = 0; i < 4; i++)
     {
+        //Space between runs
+        if(i != 0)
+        {
+            returnstring << " ";
+        }
         //Important variables
-        unsigned accesses = 0;
-        unsigned hits = 0;
+        unsigned long accesses = 0;
+        unsigned long hits = 0;
 
         //Allocate memory for cache
-        BLOCK* cache = (BLOCK*)malloc(sizeof(BLOCK) * sizes[i]);
+        BLOCK* cache = new BLOCK[sizes[i]];
         //Initialize cache 
         for(int j = 0; j < sizes[i]; j++)
         {
@@ -64,6 +75,8 @@ bool DirectCache(std::ifstream &infile)
         //Reading loop
         while(infile >> instr >> std::hex >> addr)
         {
+            //LOL offset
+            addr >>= 5;
             //Index is found by Block Address modulo Cache size
             unsigned cindex = addr % sizes[i];
             //Tag is the rest of the bits
@@ -71,13 +84,16 @@ bool DirectCache(std::ifstream &infile)
             //Check if cache location is valid
             if(cache[cindex].valid)
             {
+                //Check cache tag
                 if(cache[cindex].tag == ctag)
                 {
+                    //LogPrint(DEBUG, "HIT");
                     hits++;
                 }
                 else
                 {
                     cache[cindex].tag = ctag;
+                    //hits++;
                 }
             }
             else
@@ -86,21 +102,36 @@ bool DirectCache(std::ifstream &infile)
                 cache[cindex].tag = ctag;
             }
             accesses++;
-
-            LogPrint(INFO, instr + " - " + GetHexString(addr) + " - " + GetHexString(cindex) + " - " + GetHexString(ctag));
         }
+        
+        //Add values to string
+        returnstring << std::to_string(hits) << "," << std::to_string(accesses) << ";";
 
-        //Unallocate memory
-        free(cache);
-        std::cin >> dummy;
+        //Be kind, rewind!
+        BeKindRewind(infile);
+        //Free allocated memory
+        delete [] cache;
     }
     
+    //Write to file
+    WriteFile(TRUNCATE, outfile, returnstring.str());
     return true;
+}
+
+bool SetAssCache(std::ifstream &infile)
+{
+    int asses[4] = {2, 4, 8, 16};
 }
 
 std::string GetHexString(unsigned long addr)
 {
-        std::stringstream ss;
-        ss << std::hex << addr;
-        return ss.str();
+    std::stringstream ss;
+    ss << std::hex << addr;
+    return ss.str();
+}
+
+void BeKindRewind(std::ifstream &infile)
+{
+    infile.clear();
+    infile.seekg(0, std::ios::beg);
 }
