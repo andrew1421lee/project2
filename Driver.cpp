@@ -8,7 +8,7 @@ struct BLOCK
     char valid;
     unsigned tag;
     unsigned last;
-    unsigned temp;
+    //unsigned temp; Lol dont need
 };
 
 //Global Variables
@@ -39,8 +39,9 @@ int main(int argc, char** argv)
     if(infile)
     {
         //Run direct cache on data
-        if(!DirectCache(infile)) LogPrint(ERROR, "Failed Direct Cache");
-        if(!SetAssCache(infile)) LogPrint(ERROR, "Failed Set Associative Cache");
+        //if(!DirectCache(infile)) LogPrint(ERROR, "Failed Direct Cache");
+        //if(!SetAssCache(infile)) LogPrint(ERROR, "Failed Set Associative Cache");
+        if(!FullAssCache(infile)) LogPrint(ERROR, "Failed Full Associative Cache");
     }
 }
 
@@ -231,7 +232,102 @@ bool SetAssCache(std::ifstream &infile)
 
 bool FullAssCache(std::ifstream &infile)
 {
+    //Magic numbers!
+    int numblocks = 512;
     
+    //Output string
+    std::stringstream returnstring;
+
+    //Loop twice, once for LRU and once for PLRU
+    for(int i = 0; i < 2; i++)
+    {
+        if(i != 0)
+        {
+            returnstring << "\n";
+        }
+
+        //important variables
+        unsigned long hits = 0;
+        unsigned long accesses = 0;
+
+        //Allocate memory for cache
+        BLOCK* cache = new BLOCK[numblocks];
+        
+        //Init blocks
+        for(int j = 0; j < numblocks; j++)
+        {
+            cache[j].valid = 0;
+            cache[j].tag = 0;
+            cache[j].last = 0;
+        }
+
+        //Variables for reading
+        std::string instr;
+        unsigned long addr;
+
+        //Reading loop
+        while(infile >> instr >> std::hex >> addr)
+        {
+            //LOL offset
+            addr >>= 5;
+            //Index
+            //unsigned cindex = addr % numblocks; //lol we dont need this
+            unsigned ctag = addr;
+            
+            bool found = false;
+
+            //Loop through every block looking for hit or empty spot
+            for(int j = 0; j < numblocks; j++)
+            {
+                if(cache[j].valid && cache[j].tag == ctag)
+                {
+                    cache[j].last = accesses; //update time
+                    hits++;
+                    found = true;
+                    break;
+                }
+                else if(!cache[j].valid)
+                {
+                    //empty spot
+                    cache[j].valid = 1;
+                    cache[j].tag = ctag;
+                    cache[j].last = accesses;
+                    found = true;
+                    break;
+                }
+            }
+            //Kick LRU out
+            if(!found)
+            {
+                if(i == 0)
+                {
+                    unsigned lru = 0;
+                    for(int j = 1; j < numblocks; j++)
+                    {
+                        if(cache[lru].last > cache[j].last)
+                        {
+                            lru = j;
+                        }
+                    }
+                    //Kick 'em
+                    cache[lru].tag = ctag;
+                    cache[lru].last = accesses;               
+                }
+                else //HOT COLD
+                {
+                
+                }
+            }
+            accesses++;
+        }
+        returnstring << std::to_string(hits) << "," << std::to_string(accesses) << ";";
+        BeKindRewind(infile);
+
+        delete [] cache;
+
+        LogPrint(DEBUG, returnstring.str());
+        std::cin >> dummy;
+    }
 }
 
 std::string GetHexString(unsigned long addr)
