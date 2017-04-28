@@ -7,6 +7,8 @@ struct BLOCK
     //unsigned index; //Don't need another index, just use array index
     char valid;
     unsigned tag;
+    unsigned last;
+    unsigned temp;
 };
 
 //Global Variables
@@ -16,6 +18,7 @@ std::string dummy;
 //Forward Declarations
 bool DirectCache(std::ifstream &infile);
 bool SetAssCache(std::ifstream &infile);
+bool FullAssCache(std::ifstream &infile);
 std::string GetHexString(unsigned long hex);
 void BeKindRewind(std::ifstream &infile);
 
@@ -36,7 +39,7 @@ int main(int argc, char** argv)
     if(infile)
     {
         //Run direct cache on data
-        //if(!DirectCache(infile)) LogPrint(ERROR, "Failed Direct Cache");
+        if(!DirectCache(infile)) LogPrint(ERROR, "Failed Direct Cache");
         if(!SetAssCache(infile)) LogPrint(ERROR, "Failed Set Associative Cache");
     }
 }
@@ -123,6 +126,7 @@ bool DirectCache(std::ifstream &infile)
 
 bool SetAssCache(std::ifstream &infile)
 {
+    //Magic numbers!
     int asses[4] = {2, 4, 8, 16};
     int shifts[4] = {8, 7, 6, 5};
     int cachesize = 16384;
@@ -148,49 +152,68 @@ bool SetAssCache(std::ifstream &infile)
             {
                 cache[j][k].valid = 0;
                 cache[j][k].tag = 0;
+                cache[j][k].last = 0;
             }
             //LogPrint(INFO, std::to_string(asses[i]) + " - " + std::to_string(j));
         }
         //Variables for reading
         std::string instr;
         unsigned long addr;
+        //unsigned long time;
 
         //Reading loop
         while(infile >> instr >> std::hex >> addr)
         {
-            LogPrint(DEBUG, "addr: " + GetHexString(addr));
             //LOL offset
             addr >>= 5;
             //Index is found by Block Address modulo sets in cache
             unsigned cindex = addr % (cachesize / (32 * asses[i]));
-            //Find how much shifting I need to do
-            //unsigned bitamt = log2(cachesize / (32 * asses[i]));
             //Tag is the rest of the bits
             unsigned ctag = addr >> shifts[i];
-            /*
-            //Check if cache location is valid
-            if(cache[cindex].valid)
+
+            bool found = false;
+
+            //Loop through each block in the set
+            //Check for hit or empty spot
+            for(int j = 0; j < asses[i]; j++)
             {
-                //Check cache tag
-                if(cache[cindex].tag == ctag)
+                //valid block and correct tag
+                if(cache[cindex][j].valid && cache[cindex][j].tag == ctag)
                 {
-                    //LogPrint(DEBUG, "HIT");
-                    hits++;
+                    cache[cindex][j].last = accesses; //update time
+                    hits++; //inc hits
+                    found = true;
+                    break; // stop looking
                 }
-                else
+                //Empty spot
+                else if(!cache[cindex][j].valid)
                 {
-                    cache[cindex].tag = ctag;
-                    //hits++;
+                    //empty spot, add to cache
+                    cache[cindex][j].valid = 1;
+                    cache[cindex][j].tag = ctag;
+                    cache[cindex][j].last = accesses;
+                    found = true;
+                    break;
                 }
             }
-            else
+            //Kick LRU out
+            if(!found)
             {
-                cache[cindex].valid = 1;
-                cache[cindex].tag = ctag;
+                //Find the LRU block
+                unsigned lru = 0;
+                for(int j = 1; j < asses[i]; j++)
+                {
+                    if(cache[cindex][lru].last > cache[cindex][j].last)
+                    {
+                        lru = j;
+                    }
+                }
+                //Kick it out
+                cache[cindex][lru].tag = ctag;
+                cache[cindex][lru].last = accesses;
             }
-            accesses++;*/
-            LogPrint(DEBUG, "cindex: " + GetHexString(cindex) + "\nctag: " + GetHexString(ctag));
-            std::cin >> dummy;
+            
+            accesses++;
         }
 
         //Add values to string
@@ -202,8 +225,13 @@ bool SetAssCache(std::ifstream &infile)
         delete [] cache;
     }
     //Write to file
-    WriteFile(TRUNCATE, outfile, returnstring.str());
+    WriteFile(APPEND, outfile, "\n" + returnstring.str());
     return true;
+}
+
+bool FullAssCache(std::ifstream &infile)
+{
+    
 }
 
 std::string GetHexString(unsigned long addr)
