@@ -640,8 +640,8 @@ bool PreAssCache(std::ifstream &infile)
                 cache[cindex][lru].last = accesses;
             }
             
-            unsigned preindex = (addr + 32) % (cachesize / (32 * asses[i]));
-            
+            unsigned preindex = (addr + 1) % (cachesize / (32 * asses[i]));
+            unsigned pretag = (addr + 1) >> shifts[i]; 
             bool prefound = false;
 
             //Loop through each block in the set
@@ -649,9 +649,9 @@ bool PreAssCache(std::ifstream &infile)
             for(int j = 0; j < asses[i]; j++)
             {
                 //valid block and correct tag
-                if(cache[preindex][j].valid && cache[preindex][j].tag == ctag)
+                if(cache[preindex][j].valid && cache[preindex][j].tag == pretag)
                 {
-                    //cache[preindex][j].last = accesses; //update time
+                    cache[preindex][j].last = accesses; //update time
                     //hits++; //inc hits
                     prefound = true;
                     break; // stop looking
@@ -661,7 +661,7 @@ bool PreAssCache(std::ifstream &infile)
                 {
                     //empty spot, add to cache
                     cache[preindex][j].valid = 1;
-                    cache[preindex][j].tag = ctag;
+                    cache[preindex][j].tag = pretag;
                     cache[preindex][j].last = accesses;
                     prefound = true;
                     break;
@@ -680,10 +680,9 @@ bool PreAssCache(std::ifstream &infile)
                     }
                 }
                 //Kick it out
-                cache[preindex][lru].tag = ctag;
+                cache[preindex][lru].tag = pretag;
                 cache[preindex][lru].last = accesses;
-            }
-            
+            } 
 
             accesses++;
         }
