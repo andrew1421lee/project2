@@ -640,7 +640,7 @@ bool PreAssCache(std::ifstream &infile)
                 cache[cindex][lru].last = accesses;
             }
             
-            unsigned preindex = (addr + 1) % (cachesize / (32 * asses[i]));
+            unsigned preindex = (addr + 32) % (cachesize / (32 * asses[i]));
             
             bool prefound = false;
 
