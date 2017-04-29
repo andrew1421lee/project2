@@ -46,9 +46,10 @@ int main(int argc, char** argv)
     if(infile)
     {
         //Run direct cache on data
-        if(!DirectCache(infile)) LogPrint(ERROR, "Failed Direct Cache");
-        if(!SetAssCache(infile)) LogPrint(ERROR, "Failed Set Associative Cache");
-        if(!FullAssCache(infile)) LogPrint(ERROR, "Failed Full Associative Cache");
+        //if(!DirectCache(infile)) LogPrint(ERROR, "Failed Direct Cache");
+        //if(!SetAssCache(infile)) LogPrint(ERROR, "Failed Set Associative Cache");
+        //if(!FullAssCache(infile)) LogPrint(ERROR, "Failed Full Associative Cache");
+        if(!NoAssCache(infile)) LogPrint(ERROR, "Failed Write Miss Associative Cache");
     }
 }
 
@@ -505,7 +506,7 @@ bool NoAssCache(std::ifstream &infile)
                     break; // stop looking
                 }
                 //Empty spot
-                else if(!cache[cindex][j].valid)
+                else if(!cache[cindex][j].valid && instr.compare("S") != 0)
                 {
                     //empty spot, add to cache
                     cache[cindex][j].valid = 1;
@@ -516,7 +517,7 @@ bool NoAssCache(std::ifstream &infile)
                 }
             }
             //Kick LRU out
-            if(!found)
+            if(!found && instr.compare("S") != 0)
             {
                 //Find the LRU block
                 unsigned lru = 0;
