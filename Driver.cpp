@@ -27,6 +27,7 @@ bool SetAssCache(std::ifstream &infile);
 bool FullAssCache(std::ifstream &infile);
 bool NoAssCache(std::ifstream &infile);
 bool PreAssCache(std::ifstream &infile);
+bool MissAssCache(std::ifstream &infile);
 std::string GetHexString(unsigned long hex);
 void BeKindRewind(std::ifstream &infile);
 
@@ -47,11 +48,14 @@ int main(int argc, char** argv)
     if(infile)
     {
         //Run direct cache on data
-        //if(!DirectCache(infile)) LogPrint(ERROR, "Failed Direct Cache");
-        //if(!SetAssCache(infile)) LogPrint(ERROR, "Failed Set Associative Cache");
-        //if(!FullAssCache(infile)) LogPrint(ERROR, "Failed Full Associative Cache");
-        //if(!NoAssCache(infile)) LogPrint(ERROR, "Failed Write Miss Associative Cache");
+        if(!DirectCache(infile)) LogPrint(ERROR, "Failed Direct Cache");
+        if(!SetAssCache(infile)) LogPrint(ERROR, "Failed Set Associative Cache");
+        if(!FullAssCache(infile)) LogPrint(ERROR, "Failed Full Associative Cache");
+        if(!NoAssCache(infile)) LogPrint(ERROR, "Failed Write Miss Associative Cache");
         if(!PreAssCache(infile)) LogPrint(ERROR, "Failed Prefetch Associative Cache");
+        if(!MissAssCache(infile)) LogPrint(ERROR, "Failed Prefetch Associative Cache");
+
+
     }
 }
 
@@ -683,6 +687,160 @@ bool PreAssCache(std::ifstream &infile)
                 cache[preindex][lru].tag = pretag;
                 cache[preindex][lru].last = accesses;
             } 
+
+            accesses++;
+        }
+
+        //Add values to string
+        returnstring << std::to_string(hits) << "," << std::to_string(accesses) << ";";
+
+        //Be kind, rewind!
+        BeKindRewind(infile);
+        //Free allocated memory
+        delete [] cache;
+    }
+    //Write to file
+    WriteFile(APPEND, outfile, "\n" + returnstring.str());
+    return true;
+}
+
+bool MissAssCache(std::ifstream &infile)
+{
+    //Magic numbers!
+    int asses[4] = {2, 4, 8, 16};
+    int shifts[4] = {8, 7, 6, 5};
+    int cachesize = 16384;
+    std::stringstream returnstring;
+
+    for(int i = 0; i < 4; i++)
+    {
+        if(i != 0)
+        {
+            returnstring << " ";
+        }
+
+        unsigned long hits = 0;
+        unsigned long accesses = 0;
+        
+        BLOCK** cache = new BLOCK*[cachesize / (32 * asses[i])];
+
+        //Loops number of sets
+        for(int j = 0; j < (cachesize / (32 * asses[i])); j++)
+        {
+            cache[j] = new BLOCK[asses[i]];
+            for(int k = 0; k < asses[i]; k++)
+            {
+                cache[j][k].valid = 0;
+                cache[j][k].tag = 0;
+                cache[j][k].last = 0;
+            }
+            //LogPrint(INFO, std::to_string(asses[i]) + " - " + std::to_string(j));
+        }
+        //Variables for reading
+        std::string instr;
+        unsigned long addr;
+        //unsigned long time;
+
+        //Reading loop
+        while(infile >> instr >> std::hex >> addr)
+        {
+            //LOL offset
+            addr >>= 5;
+            //Index is found by Block Address modulo sets in cache
+            unsigned cindex = addr % (cachesize / (32 * asses[i]));
+            //Tag is the rest of the bits
+            unsigned ctag = addr >> shifts[i];
+
+            bool found = false;
+            bool miss = true;
+            //Loop through each block in the set
+            //Check for hit or empty spot
+            for(int j = 0; j < asses[i]; j++)
+            {
+                //valid block and correct tag
+                if(cache[cindex][j].valid && cache[cindex][j].tag == ctag)
+                {
+                    cache[cindex][j].last = accesses; //update time
+                    hits++; //inc hits
+                    found = true;
+                    miss = false;
+                    break; // stop looking
+                }
+                //Empty spot
+                else if(!cache[cindex][j].valid)
+                {
+                    //empty spot, add to cache
+                    cache[cindex][j].valid = 1;
+                    cache[cindex][j].tag = ctag;
+                    cache[cindex][j].last = accesses;
+                    found = true;
+                    break;
+                }
+            }
+            //Kick LRU out
+            if(!found)
+            {
+                //Find the LRU block
+                unsigned lru = 0;
+                for(int j = 1; j < asses[i]; j++)
+                {
+                    if(cache[cindex][lru].last > cache[cindex][j].last)
+                    {
+                        lru = j;
+                    }
+                }
+                //Kick it out
+                cache[cindex][lru].tag = ctag;
+                cache[cindex][lru].last = accesses;
+            }
+            
+            unsigned preindex = (addr + 1) % (cachesize / (32 * asses[i]));
+            unsigned pretag = (addr + 1) >> shifts[i]; 
+            bool prefound = false;
+
+            //Loop through each block in the set
+            //Check for hit or empty spot
+            if(miss)
+            {
+                for(int j = 0; j < asses[i]; j++)
+                {
+                    //valid block and correct tag
+                    if(cache[preindex][j].valid && cache[preindex][j].tag == pretag)
+                    {
+                        cache[preindex][j].last = accesses; //update time
+                        //hits++; //inc hits
+                        prefound = true;
+                        break; // stop looking
+                    }
+                    //Empty spot
+                    else if(!cache[preindex][j].valid)
+                    {
+                        //empty spot, add to cache
+                        cache[preindex][j].valid = 1;
+                        cache[preindex][j].tag = pretag;
+                        cache[preindex][j].last = accesses;
+                        prefound = true;
+                        break;
+                    }
+                }
+                //Kick LRU out
+                if(!prefound)
+                {
+                    //Find the LRU block
+                    unsigned lru = 0;
+                    for(int j = 1; j < asses[i]; j++)
+                    {
+                        if(cache[preindex][lru].last > cache[preindex][j].last)
+                        {
+                            lru = j;
+                        }
+                    }
+                    //Kick it out
+                    cache[preindex][lru].tag = pretag;
+                    cache[preindex][lru].last = accesses;
+                } 
+           
+            }
 
             accesses++;
         }
