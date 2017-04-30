@@ -8,7 +8,7 @@ struct BLOCK
     char valid;
     unsigned tag;
     unsigned last;
-    //unsigned temp; Lol dont need
+    //unsigned long temp; //Lol lets see
 };
 
 struct NODE
@@ -259,6 +259,7 @@ bool FullAssCache(std::ifstream &infile)
         if(i != 0)
         {
             returnstring << "\n";
+            
             bst = new NODE[1023];
             for(int j = 0; j < 1023; j++)
             {
@@ -289,6 +290,7 @@ bool FullAssCache(std::ifstream &infile)
             cache[j].valid = 0;
             cache[j].tag = 0;
             cache[j].last = 0;
+            //cache[j].temp = 0;
         }
 
         //Variables for reading
@@ -316,10 +318,16 @@ bool FullAssCache(std::ifstream &infile)
                     if(i == 0)
                     {
                         cache[j].last = accesses; //update time
+                        //cache[j].temp++;
                     }
                     else
                     {
+                        //cache[j].last = accesses;
+                        //cache[j].temp++;
                         //Find which item in the BST corresponds to the cache
+                        
+                        cache[j].last = accesses;
+
                         float bst_index;
                         for(int k = 0; k < 1023; k++)
                         {
@@ -353,7 +361,8 @@ bool FullAssCache(std::ifstream &infile)
                             bst_index = (bst_index - 1.0) / 2.0;
                             //LogPrint(DEBUG, "Fixing parents on access");
                         }
-                        //LogPrint(DEBUG, "OK fixed parents");;
+                        //LogPrint(DEBUG, "OK fixed parents");
+
                     }
                     hits++;
                     found = true;
@@ -370,7 +379,10 @@ bool FullAssCache(std::ifstream &infile)
                     }
                     else
                     {
+                        cache[j].last = accesses;
+                        //cache[j].temp++;
                         //traverse BST
+                        
                         unsigned end = 0;
                         while(bst[end].lrupath != 2)
                         {
@@ -388,6 +400,7 @@ bool FullAssCache(std::ifstream &infile)
                         }
                         bst[end].index = j;
                         //LogPrint(DEBUG, "OK filled empty space");
+                        
                     }
                     found = true;
                     break;
@@ -412,6 +425,20 @@ bool FullAssCache(std::ifstream &infile)
                 }
                 else //HOT COLD
                 {
+                    /*
+                    unsigned lfu = 0;
+                    for(int j = 1; j < numblocks; j++)
+                    {
+                        if(cache[lfu].temp < cache[j].temp)
+                        {
+                            lfu = j;
+                        }
+                    }
+                    cache[lfu].tag = ctag;
+                    cache[lfu].last = accesses;
+                    cache[lfu].temp = 1;
+                    */
+
                     //Traverse BST
                     unsigned end = 0;
                     while(bst[end].lrupath != 2)
@@ -431,6 +458,7 @@ bool FullAssCache(std::ifstream &infile)
                     cache[bst[end].index].tag = ctag;
                     //cache[bst[end].index].last = accesses;
                     //LogPrint(DEBUG, "OK kicked something out");
+                    
                 }
             }
             accesses++;
